@@ -12,7 +12,7 @@ require("dotenv").config();
 
 const fs = require("fs");
 
-require('fs').writeFileSync('/home/YOUR_CPANEL_USER/dbd-turniere.de/startup-test.txt', 'app.js was loaded\n');
+require('fs').writeFileSync('/home/skyblock/dbd-turniere.de/startup-test.txt', 'app.js was loaded\n');
 
 process.on("uncaughtException", (err) => {
   fs.appendFileSync("startup-error.log", `[uncaughtException]\n${err.stack}\n`);
