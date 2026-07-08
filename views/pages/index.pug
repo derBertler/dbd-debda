@@ -1,0 +1,22 @@
+extends ../layout.pug
+
+block content
+  h1.text-center DBD Turniere
+  hr
+  .row.g-4
+    .col-lg-8
+      h2 Welcome
+      p This app is being prepared for persistent tournament pages, login-protected score edits, and tournament data management.
+      p The transferred base has been trimmed down so the Debda-specific build can grow without carrying unrelated pages and missing components.
+    .col-lg-4
+      .card.border-dark.text-bg-dark
+        .card-header Current Focus
+        .card-body
+          ul.mb-0
+            li Tournament overview
+            li Team and staff data
+            li Scorekeeping
+            li Login-protected edits
+
+block scripts
+  script(src="/javascripts/index.js")

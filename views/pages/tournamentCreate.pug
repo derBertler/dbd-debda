@@ -1,0 +1,164 @@
+extends ../layout.pug
+
+block content
+  .tournament-create-page
+    .create-page-hero
+      div
+        p.create-page-kicker Tournament Control
+        h1.mb-1 Create Tournament
+        p.text-secondary.mb-0 Set up the tournament shell before adding teams, staff, rules, and matches.
+      a.btn.btn-outline-light(href="/") Back
+
+    if message
+      .alert(class=`alert-${message.type}` role="alert") #{message.text}
+
+    form(method="post" action="/tournaments/create")
+      .row.g-4
+        .col-lg-8
+          .card.border-dark.text-bg-dark.create-card
+            .card-header Tournament
+            .card-body
+              .mb-3
+                label.form-label(for="tournament-name") Name
+                input#tournament-name.form-control(
+                  type="text"
+                  name="name"
+                  value=form.name || ''
+                  placeholder="e.g. DBD Summer Tournament 2026"
+                  required
+                )
+              .tournament-form-grid
+                div
+                  label.form-label(for="starts-at") Start date
+                  input#starts-at.form-control(type="date" name="startsAt" value=form.startsAt || '')
+                div
+                  label.form-label(for="ends-at") End date
+                  input#ends-at.form-control(type="date" name="endsAt" value=form.endsAt || '')
+                div
+                  label.form-label(for="games-per-match") Games per match
+                  input#games-per-match.form-control(
+                    type="number"
+                    name="gamesPerMatch"
+                    min="1"
+                    step="1"
+                    value=form.gamesPerMatch || 2
+                    required
+                  )
+                div
+                  label.form-label(for="team-slot-count") Team slots
+                  input#team-slot-count.form-control(
+                    type="number"
+                    name="teamSlotCount"
+                    min="0"
+                    step="1"
+                    value=form.teamSlotCount !== undefined ? form.teamSlotCount : 8
+                    required
+                  )
+                .tournament-form-grid-wide
+                  label.form-label Scoring mode
+                  .scoring-mode-options
+                    .form-check.mb-0
+                      input#scoring-mode-points.form-check-input(
+                        type="radio"
+                        name="scoringMode"
+                        value="points"
+                        checked=(form.scoringMode || 'points') === 'points'
+                      )
+                      label.form-check-label(for="scoring-mode-points") Point based
+                    .form-check.mb-0
+                      input#scoring-mode-wl.form-check-input(
+                        type="radio"
+                        name="scoringMode"
+                        value="wl"
+                        checked=form.scoringMode === 'wl'
+                      )
+                      label.form-check-label(for="scoring-mode-wl") Win / loss based
+              .mt-3
+                label.form-label(for="description") Notes
+                textarea#description.form-control(name="description" rows="4" placeholder="Format, timing, organizer notes...")= form.description || ''
+
+          .card.border-dark.text-bg-dark.create-card.mt-4
+            .card-header Scoring Categories
+            .card-body
+              p.text-secondary Small rows for the things you count during a game. Empty rows are ignored.
+              .scoring-category-grid.scoring-category-header.fw-bold.text-secondary.d-none.d-md-grid
+                span Display name
+                span Points / occurrence
+                span Max occurrences
+                span
+              #scoring-category-rows
+                - const categories = form.scoringCategories && form.scoringCategories.length ? form.scoringCategories : []
+                - const rows = categories.length >= 3 ? categories : categories.concat(Array.from({ length: 3 - categories.length }, () => ({})))
+                each category, index in rows
+                  .scoring-category-grid.scoring-category-row.mb-2
+                    input.form-control.scoring-category-input(
+                      id=`scoring-display-name-${index}`
+                      type="text"
+                      name="scoringDisplayName"
+                      value=category.displayName || ''
+                      placeholder="Display name"
+                      aria-label="Display name"
+                    )
+                    input.form-control.scoring-category-input(
+                      id=`scoring-points-${index}`
+                      type="number"
+                      name="scoringPointsPerOccurrence"
+                      step="0.25"
+                      value=category.pointsPerOccurrence !== undefined ? category.pointsPerOccurrence : ''
+                      placeholder="0"
+                      aria-label="Points per occurrence"
+                    )
+                    input.form-control.scoring-category-input(
+                      id=`scoring-max-${index}`
+                      type="number"
+                      name="scoringMaxOccurrences"
+                      min="0"
+                      step="1"
+                      value=category.maxOccurrences !== undefined ? category.maxOccurrences : ''
+                      placeholder="0"
+                      aria-label="Maximum occurrences"
+                    )
+                    button.btn.btn-outline-danger.scoring-remove-row(type="button" aria-label="Remove scoring category")
+                      i.bi.bi-trash
+              .d-flex.flex-wrap.gap-2.mt-3
+                button#add-scoring-row.btn.btn-outline-light(type="button")
+                  i.bi.bi-plus-lg.me-1
+                  | Add row
+                button#remove-empty-scoring-row.btn.btn-outline-secondary(type="button")
+                  i.bi.bi-dash-lg.me-1
+                  | Remove empty row
+
+          .card.border-dark.text-bg-dark.create-card.mt-4
+            .card-header Defaults
+            .card-body
+              .form-check.form-switch.mb-3
+                input#createDefaultRules.form-check-input(type="checkbox" name="createDefaultRules" checked=form.createDefaultRules !== undefined ? form.createDefaultRules : true)
+                label.form-check-label(for="createDefaultRules") Create default rule categories
+              .form-check.form-switch
+                input#createDefaultStaff.form-check-input(type="checkbox" name="createDefaultStaff" checked=form.createDefaultStaff !== undefined ? form.createDefaultStaff : true)
+                label.form-check-label(for="createDefaultStaff") Create default staff categories
+
+        .col-lg-4
+          .sticky-lg-top.create-tournament-info
+            .card.border-dark.text-bg-dark.create-card.info-card
+              .card-header After Creation
+              .card-body
+                ul.mb-0
+                  li Add teams and mark one leader per team.
+                  li Fill rule categories like Perks, Items, Maps, Termine, and Sonstiges.
+                  li Add staff members for referees and organizers.
+                  li Publish the tournament page when the schedule is ready.
+
+            .card.border-dark.text-bg-dark.create-card.info-card.mt-4
+              .card-header Setup Notes
+              .card-body
+                p.mb-2 Team slots create placeholder teams you can rename later.
+                p.mb-2 Point-based tournaments use scoring categories for standings.
+                p.mb-0 Win/loss tournaments can still keep categories as match notes or tie-breakers.
+
+      .d-flex.justify-content-end.gap-2.mt-4
+        a.btn.btn-outline-light(href="/") Cancel
+        button.btn.btn-primary(type="submit") Create Tournament
+
+block scripts
+  script(src="/javascripts/tournamentCreate.js")

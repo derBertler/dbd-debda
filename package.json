@@ -1,0 +1,46 @@
+{
+  "name": "dbd-debda",
+  "version": "1.0.0",
+  "description": "Persistent Dead by Daylight tournament tracker.",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node --watch app.js",
+    "migrate:dev": "db-migrate up -e dev --config ./database.json",
+    "migrate:prod": "db-migrate up -e prod --config ./database.json",
+    "reset:dev": "db-migrate reset -e dev --config ./database.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/derBertler/dbd-debda.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/derBertler/dbd-debda/issues"
+  },
+  "homepage": "https://github.com/derBertler/dbd-debda#readme",
+  "dependencies": {
+    "axios": "^1.11.0",
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.2",
+    "connect-sqlite3": "^0.9.16",
+    "cookie-parser": "~1.4.4",
+    "cors": "^2.8.5",
+    "db-migrate": "^0.11.14",
+    "db-migrate-mysql": "^3.0.0",
+    "debug": "~2.6.9",
+    "dotenv": "^17.2.1",
+    "express": "^4.21.2",
+    "express-mysql-session": "^3.0.3",
+    "express-session": "^1.18.2",
+    "http-errors": "~1.6.3",
+    "morgan": "^1.10.1",
+    "mysql": "^2.18.1",
+    "mysql2": "^3.15.2",
+    "node-flyway": "^0.0.13",
+    "pug": "^3.0.3"
+  }
+}

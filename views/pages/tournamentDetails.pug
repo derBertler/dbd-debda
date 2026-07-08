@@ -1,0 +1,955 @@
+extends ../layout.pug
+
+block content
+  - const safeCounts = counts || { teams: 0, gameDays: 0, ruleCategories: 0, staffCategories: 0 }
+  - const safeTeams = teams || []
+  - const safeGameDays = gameDays || []
+  - const safeScoringCategories = scoringCategories || []
+  - const safeRuleCategories = ruleCategories || []
+  - const safeStaffCategories = staffCategories || []
+  - const safeRankings = rankings || []
+  - const safeAdmins = admins || []
+  .tournament-create-page.tournament-detail-page(class=viewMode === 'participant' ? 'participant-view' : 'organizer-view')
+    .create-page-hero.tournament-page-hero
+      div
+        p.create-page-kicker= viewMode === 'participant' ? 'Tournament View' : 'Organizer View'
+        h1.mb-1= tournament.NAME
+        p.text-secondary.mb-0
+          | #{tournament.SCORING_MODE === 'wl' ? 'Win / loss based' : 'Point based'} - #{tournament.GAMES_PER_MATCH} games per match
+      .d-flex.flex-wrap.gap-2
+        if viewMode === 'participant'
+          if canManage
+            a.btn.btn-outline-light(href=`/tournaments/${tournament.ID}`) Organizer view
+          button.btn.btn-outline-light.tournament-share-button(type="button" data-share-url=`/tournaments/${tournament.ID}/view`)
+            i.bi.bi-share.me-1
+            | Share
+        else if viewMode !== 'participant'
+          a.btn.btn-primary(href=`/tournaments/${tournament.ID}/view`) View page
+          button.btn.btn-outline-light.tournament-share-button(type="button" data-share-url=`/tournaments/${tournament.ID}/view`)
+            i.bi.bi-share.me-1
+            | Share
+
+    nav.tournament-page-nav(aria-label="Tournament sections")
+      a(href="#game-days")
+        i.bi.bi-calendar-event.me-2
+        | Game Days
+      if viewMode === 'participant'
+        button(type="button" data-bs-toggle="modal" data-bs-target="#view-teams-modal")
+          i.bi.bi-people.me-2
+          | Teams
+        button(type="button" data-bs-toggle="modal" data-bs-target="#view-scoring-modal")
+          i.bi.bi-calculator.me-2
+          | Scoring
+        button(type="button" data-bs-toggle="modal" data-bs-target="#view-rules-modal")
+          i.bi.bi-journal-text.me-2
+          | Rules
+        button(type="button" data-bs-toggle="modal" data-bs-target="#view-staff-modal")
+          i.bi.bi-shield-check.me-2
+          | Staff
+      else
+        a(href="#teams")
+          i.bi.bi-people.me-2
+          | Teams
+        a(href="#scoring")
+          i.bi.bi-calculator.me-2
+          | Scoring
+        a(href="#rules")
+          i.bi.bi-journal-text.me-2
+          | Rules
+        a(href="#staff")
+          i.bi.bi-shield-check.me-2
+          | Staff
+
+    .row.g-4
+      .col-lg-8
+        section#overview.card.border-dark.text-bg-dark.create-card
+          .card-header Overview
+          .card-body
+            dl.tournament-summary-grid.mb-0
+              div
+                dt Start date
+                dd= tournament.STARTS_AT_DISPLAY
+              div
+                dt End date
+                dd= tournament.ENDS_AT_DISPLAY
+              div
+                dt Teams
+                dd= safeCounts.teams
+              div
+                dt Game days
+                dd= safeCounts.gameDays
+              div
+                dt Rule categories
+                dd= safeCounts.ruleCategories
+              div
+                dt Staff categories
+                dd= safeCounts.staffCategories
+              if viewMode !== 'participant'
+                div
+                  dt Tournament ID
+                  dd= tournament.ID
+            if tournament.DESCRIPTION
+              hr
+              p.mb-0= tournament.DESCRIPTION
+
+        section#teams.card.border-dark.text-bg-dark.create-card.mt-4
+          .card-header Teams
+          .card-body
+            if viewMode !== 'participant'
+              if safeTeams.length
+                .team-edit-list
+                  each team in safeTeams
+                    .team-edit-block(id=`team-${team.ID}`)
+                      form.team-edit-row(method="post" action=`/tournaments/${tournament.ID}/teams/${team.ID}`)
+                        input(type="hidden" name="returnTo" value=`#team-${team.ID}`)
+                        .team-edit-fields
+                          div
+                            label.form-label(for=`team-name-${team.ID}`) Name
+                            input.form-control(
+                              id=`team-name-${team.ID}`
+                              type="text"
+                              name="name"
+                              value=team.NAME
+                              required
+                            )
+                          div
+                            label.form-label(for=`team-shorthand-${team.ID}`) Shorthand
+                            input.form-control(
+                              id=`team-shorthand-${team.ID}`
+                              type="text"
+                              name="shorthand"
+                              value=team.SHORTHAND || ''
+                              maxlength="32"
+                              placeholder="e.g. FCT"
+                            )
+                        button.btn.btn-outline-light(type="submit")
+                          i.bi.bi-save.me-1
+                          | Save
+                      - const teamHasLeader = (team.PLAYERS || []).some((player) => player.IS_TEAM_LEADER)
+                      .team-roster-panel
+                        .team-roster-header
+                          span Players
+                          span= `${(team.PLAYERS || []).length} listed`
+                        if team.PLAYERS && team.PLAYERS.length
+                          .player-edit-list
+                            each player in team.PLAYERS
+                              form.player-edit-row(method="post" action=`/tournaments/${tournament.ID}/teams/${team.ID}/players/${player.ID}`)
+                                input(type="hidden" name="returnTo" value=`#team-${team.ID}`)
+                                .player-edit-fields
+                                  div
+                                    label.form-label(for=`player-name-${player.ID}`) Name
+                                    input.form-control(
+                                      id=`player-name-${player.ID}`
+                                      type="text"
+                                      name="name"
+                                      value=player.NAME
+                                      required
+                                    )
+                                  div
+                                    label.form-label(for=`player-steam-${player.ID}`) Steam ID
+                                      span.text-secondary  (optional)
+                                    input.form-control(
+                                      id=`player-steam-${player.ID}`
+                                      type="text"
+                                      name="steamId"
+                                      value=player.STEAM_ID || ''
+                                      maxlength="32"
+                                    )
+                                  .form-check.player-leader-check
+                                    input.form-check-input(
+                                      id=`player-leader-${player.ID}`
+                                      type="checkbox"
+                                      name="isTeamLeader"
+                                      checked=Boolean(player.IS_TEAM_LEADER)
+                                    )
+                                    label.form-check-label(for=`player-leader-${player.ID}`) Leader
+                                button.btn.btn-outline-light(type="submit")
+                                  i.bi.bi-save.me-1
+                                  | Save
+                        else
+                          p.text-secondary.mb-3 No players yet.
+                        form.player-add-row(method="post" action=`/tournaments/${tournament.ID}/teams/${team.ID}/players`)
+                          input(type="hidden" name="returnTo" value=`#team-${team.ID}`)
+                          .player-edit-fields
+                            div
+                              label.form-label(for=`new-player-name-${team.ID}`) Player name
+                              input.form-control(
+                                id=`new-player-name-${team.ID}`
+                                type="text"
+                                name="name"
+                                placeholder="e.g. derBertler"
+                                required
+                              )
+                            div
+                              label.form-label(for=`new-player-steam-${team.ID}`) Steam ID
+                                span.text-secondary  (optional)
+                              input.form-control(
+                                id=`new-player-steam-${team.ID}`
+                                type="text"
+                                name="steamId"
+                                maxlength="32"
+                              )
+                            .form-check.player-leader-check
+                              input.form-check-input(
+                                id=`new-player-leader-${team.ID}`
+                                type="checkbox"
+                                name="isTeamLeader"
+                                disabled=teamHasLeader
+                              )
+                              label.form-check-label(for=`new-player-leader-${team.ID}`) Leader
+                              if teamHasLeader
+                                small.text-secondary.d-block Leader already set
+                          button.btn.btn-primary(type="submit")
+                            i.bi.bi-plus-lg.me-1
+                            | Add
+              else
+                p.text-secondary.mb-3 No teams yet.
+
+              form.team-add-row(method="post" action=`/tournaments/${tournament.ID}/teams`)
+                .team-edit-fields
+                  div
+                    label.form-label(for="new-team-name") New team name
+                    input#new-team-name.form-control(
+                      type="text"
+                      name="name"
+                      placeholder="e.g. Bert by Daylight"
+                      required
+                    )
+                  div
+                    label.form-label(for="new-team-shorthand") Shorthand
+                    input#new-team-shorthand.form-control(
+                      type="text"
+                      name="shorthand"
+                      maxlength="32"
+                      placeholder="e.g. BBD"
+                    )
+                button.btn.btn-primary(type="submit")
+                  i.bi.bi-plus-lg.me-1
+                  | Add team
+            else if safeTeams.length
+              .team-chip-grid
+                each team in safeTeams
+                  .team-chip
+                    .team-chip-heading
+                      span.team-chip-name= team.NAME
+                      if team.SHORTHAND
+                        span.team-chip-short= team.SHORTHAND
+                    if team.PLAYERS && team.PLAYERS.length
+                      .team-chip-players
+                        - const leaders = (team.PLAYERS || []).filter((player) => player.IS_TEAM_LEADER)
+                        - const roster = (team.PLAYERS || []).filter((player) => !player.IS_TEAM_LEADER)
+                        if leaders.length
+                          .team-chip-leaders
+                            each player in leaders
+                              span.team-leader-pill
+                                i.bi.bi-star-fill
+                                | #{player.NAME}
+                        if roster.length
+                          .team-chip-roster
+                            each player in roster
+                              span= player.NAME
+            else
+              p.text-secondary.mb-0 No teams yet.
+
+        section#game-days.card.border-dark.text-bg-dark.create-card.mt-4
+          .card-header Game Days
+          .card-body
+            if safeGameDays.length
+              .game-day-list
+                each gameDay in safeGameDays
+                  .game-day-block(id=`game-day-${gameDay.ID}`)
+                    .game-day-heading
+                      div
+                        h3.h5.mb-1= gameDay.TITLE
+                        p.text-secondary.mb-0= gameDay.GAME_DATE_DISPLAY
+                      if viewMode !== 'participant'
+                        span.badge.text-bg-dark #{(gameDay.MATCHUPS || []).length} matchups
+
+                    if viewMode !== 'participant'
+                      if gameDay.MATCHUPS && gameDay.MATCHUPS.length
+                        .matchup-edit-list
+                          each matchup in gameDay.MATCHUPS
+                            form.matchup-edit-row(method="post" action=`/tournaments/${tournament.ID}/game-days/${gameDay.ID}/matchups/${matchup.ID}`)
+                              input(type="hidden" name="returnTo" value=`#game-day-${gameDay.ID}`)
+                              .matchup-edit-fields
+                                div
+                                  label.form-label(for=`matchup-team-one-${matchup.ID}`) Team 1
+                                  select.form-select(id=`matchup-team-one-${matchup.ID}` name="teamOneId")
+                                    option(value="") TBD
+                                    each team in safeTeams
+                                      option(value=team.ID selected=Number(matchup.TEAM_ONE_ID) === Number(team.ID))= team.NAME
+                                div
+                                  label.form-label(for=`matchup-team-two-${matchup.ID}`) Team 2
+                                  select.form-select(id=`matchup-team-two-${matchup.ID}` name="teamTwoId")
+                                    option(value="") TBD
+                                    each team in safeTeams
+                                      option(value=team.ID selected=Number(matchup.TEAM_TWO_ID) === Number(team.ID))= team.NAME
+                              .matchup-row-actions
+                                button.btn.btn-outline-light(type="submit")
+                                  i.bi.bi-save.me-1
+                                  | Save
+                                button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target=`#score-modal-${matchup.ID}`)
+                                  i.bi.bi-pencil-square.me-1
+                                  | Scores
+                            .modal.fade.score-modal(id=`score-modal-${matchup.ID}` tabindex="-1" aria-labelledby=`score-modal-title-${matchup.ID}` aria-hidden="true")
+                              .modal-dialog.modal-xl.modal-dialog-scrollable
+                                .modal-content.text-bg-dark
+                                  form(method="post" action=`/tournaments/${tournament.ID}/game-days/${gameDay.ID}/matchups/${matchup.ID}/scores`)
+                                    input(type="hidden" name="returnTo" value=`#game-day-${gameDay.ID}`)
+                                    .modal-header
+                                      div
+                                        h5.modal-title(id=`score-modal-title-${matchup.ID}`)
+                                          | Scores: #{matchup.TEAM_ONE_NAME || 'TBD'} vs #{matchup.TEAM_TWO_NAME || 'TBD'}
+                                        p.text-secondary.mb-0 #{tournament.GAMES_PER_MATCH} games per match, roles alternate each game.
+                                      button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal" aria-label="Close")
+                                    .modal-body
+                                      if safeScoringCategories.length
+                                        .score-game-list
+                                          each game in matchup.GAMES
+                                            .score-game-card
+                                              .score-game-heading
+                                                div
+                                                  h6.mb-1 Game #{game.NUMBER}
+                                                  p.text-secondary.mb-0
+                                                    | #{matchup.TEAM_ONE_NAME || 'Team 1'}: #{game.TEAM_ONE_ROLE} · #{matchup.TEAM_TWO_NAME || 'Team 2'}: #{game.TEAM_TWO_ROLE}
+                                                .score-total-pill
+                                                  | #{Number(game.TEAM_ONE_TOTAL || 0).toFixed(2)} : #{Number(game.TEAM_TWO_TOTAL || 0).toFixed(2)}
+                                              .table-responsive
+                                                table.table.table-dark.table-sm.align-middle.score-entry-table.mb-0
+                                                  thead
+                                                    tr
+                                                      th Category
+                                                      th Points
+                                                      th Max
+                                                      th= matchup.TEAM_ONE_NAME || 'Team 1'
+                                                      th= matchup.TEAM_TWO_NAME || 'Team 2'
+                                                  tbody
+                                                    each category in game.CATEGORIES
+                                                      tr
+                                                        td= category.DISPLAY_NAME
+                                                        td= category.POINTS_PER_OCCURRENCE
+                                                        td= category.MAX_OCCURRENCES
+                                                        td
+                                                          if matchup.TEAM_ONE_ID
+                                                            input.form-control.form-control-sm(
+                                                              type="number"
+                                                              name=`score_${game.NUMBER}_${category.ID}_${matchup.TEAM_ONE_ID}`
+                                                              min="0"
+                                                              step="1"
+                                                              max=category.MAX_OCCURRENCES || false
+                                                              value=category.TEAM_ONE_OCCURRENCES || 0
+                                                            )
+                                                          else
+                                                            input.form-control.form-control-sm(type="number" value="0" disabled)
+                                                        td
+                                                          if matchup.TEAM_TWO_ID
+                                                            input.form-control.form-control-sm(
+                                                              type="number"
+                                                              name=`score_${game.NUMBER}_${category.ID}_${matchup.TEAM_TWO_ID}`
+                                                              min="0"
+                                                              step="1"
+                                                              max=category.MAX_OCCURRENCES || false
+                                                              value=category.TEAM_TWO_OCCURRENCES || 0
+                                                            )
+                                                          else
+                                                            input.form-control.form-control-sm(type="number" value="0" disabled)
+                                      else
+                                        p.text-secondary.mb-0 Add scoring categories before entering matchup scores.
+                                    .modal-footer
+                                      .me-auto.score-total-summary
+                                        | Match total: #{Number(matchup.TEAM_ONE_TOTAL || 0).toFixed(2)} : #{Number(matchup.TEAM_TWO_TOTAL || 0).toFixed(2)}
+                                      button.btn.btn-outline-light(type="button" data-bs-dismiss="modal") Cancel
+                                      button.btn.btn-primary(type="submit" disabled=!safeScoringCategories.length)
+                                        i.bi.bi-save.me-1
+                                        | Save scores
+                      else
+                        p.text-secondary.mb-3 No matchups yet.
+
+                      form.matchup-add-row(method="post" action=`/tournaments/${tournament.ID}/game-days/${gameDay.ID}/matchups`)
+                        input(type="hidden" name="returnTo" value=`#game-day-${gameDay.ID}`)
+                        .matchup-edit-fields
+                          div
+                            label.form-label(for=`new-matchup-team-one-${gameDay.ID}`) Team 1
+                            select.form-select(id=`new-matchup-team-one-${gameDay.ID}` name="teamOneId")
+                              option(value="") TBD
+                              each team in safeTeams
+                                option(value=team.ID)= team.NAME
+                          div
+                            label.form-label(for=`new-matchup-team-two-${gameDay.ID}`) Team 2
+                            select.form-select(id=`new-matchup-team-two-${gameDay.ID}` name="teamTwoId")
+                              option(value="") TBD
+                              each team in safeTeams
+                                option(value=team.ID)= team.NAME
+                        button.btn.btn-primary(type="submit")
+                          i.bi.bi-plus-lg.me-1
+                          | Add matchup
+                    else if gameDay.MATCHUPS && gameDay.MATCHUPS.length
+                      .matchup-view-list
+                        each matchup in gameDay.MATCHUPS
+                          .matchup-view-row
+                            strong= matchup.TEAM_ONE_NAME || 'TBD'
+                            if matchup.HAS_SCORES
+                              span.matchup-vs #{Number(matchup.TEAM_ONE_TOTAL || 0).toFixed(2)} : #{Number(matchup.TEAM_TWO_TOTAL || 0).toFixed(2)}
+                            else
+                              span.matchup-vs vs
+                            strong= matchup.TEAM_TWO_NAME || 'TBD'
+                    else
+                      p.text-secondary.mb-0 No matchups yet.
+            else
+              p.text-secondary.mb-3 No game days yet.
+
+            if viewMode !== 'participant'
+              form.game-day-add-row(method="post" action=`/tournaments/${tournament.ID}/game-days`)
+                .game-day-add-fields
+                  div
+                    label.form-label(for="new-game-day-title") Title
+                    input#new-game-day-title.form-control(
+                      type="text"
+                      name="title"
+                      placeholder="e.g. Day 1"
+                      required
+                    )
+                  div
+                    label.form-label(for="new-game-day-date") Date
+                    input#new-game-day-date.form-control(type="date" name="gameDate")
+                button.btn.btn-primary(type="submit")
+                  i.bi.bi-plus-lg.me-1
+                  | Add game day
+
+        section#scoring.card.border-dark.text-bg-dark.create-card.mt-4
+          .card-header Scoring
+          .card-body
+            if viewMode !== 'participant'
+              if safeScoringCategories.length
+                .scoring-edit-list
+                  each category in safeScoringCategories
+                    form.scoring-edit-row(method="post" action=`/tournaments/${tournament.ID}/scoring-categories/${category.ID}`)
+                      .scoring-edit-fields
+                        div
+                          label.form-label(for=`scoring-name-${category.ID}`) Display name
+                          input.form-control(
+                            id=`scoring-name-${category.ID}`
+                            type="text"
+                            name="displayName"
+                            value=category.DISPLAY_NAME
+                            required
+                          )
+                        div
+                          label.form-label(for=`scoring-points-${category.ID}`) Points / occurrence
+                          input.form-control(
+                            id=`scoring-points-${category.ID}`
+                            type="number"
+                            name="pointsPerOccurrence"
+                            step="0.25"
+                            value=category.POINTS_PER_OCCURRENCE
+                          )
+                        div
+                          label.form-label(for=`scoring-max-${category.ID}`) Max occurrences
+                          input.form-control(
+                            id=`scoring-max-${category.ID}`
+                            type="number"
+                            name="maxOccurrences"
+                            min="0"
+                            step="1"
+                            value=category.MAX_OCCURRENCES
+                          )
+                      button.btn.btn-outline-light(type="submit")
+                        i.bi.bi-save.me-1
+                        | Save
+              else
+                p.text-secondary.mb-3 No scoring categories yet.
+
+              form.scoring-add-row(method="post" action=`/tournaments/${tournament.ID}/scoring-categories`)
+                .scoring-edit-fields
+                  div
+                    label.form-label(for="new-scoring-name") Display name
+                    input#new-scoring-name.form-control(
+                      type="text"
+                      name="displayName"
+                      placeholder="e.g. Totem"
+                      required
+                    )
+                  div
+                    label.form-label(for="new-scoring-points") Points / occurrence
+                    input#new-scoring-points.form-control(
+                      type="number"
+                      name="pointsPerOccurrence"
+                      step="0.25"
+                      value="0"
+                    )
+                  div
+                    label.form-label(for="new-scoring-max") Max occurrences
+                    input#new-scoring-max.form-control(
+                      type="number"
+                      name="maxOccurrences"
+                      min="0"
+                      step="1"
+                      value="0"
+                    )
+                button.btn.btn-primary(type="submit")
+                  i.bi.bi-plus-lg.me-1
+                  | Add category
+            else if safeScoringCategories.length
+              .participant-scoring-grid
+                each category in safeScoringCategories
+                  .participant-scoring-card
+                    .participant-scoring-name= category.DISPLAY_NAME
+                    .participant-scoring-meta
+                      span
+                        small Points
+                        strong= Number(category.POINTS_PER_OCCURRENCE || 0).toFixed(2)
+                      span
+                        small Max
+                        strong= category.MAX_OCCURRENCES
+            else
+              p.text-secondary.mb-0 No scoring categories yet.
+
+        section#rules.card.border-dark.text-bg-dark.create-card.mt-4
+          .card-header Rules
+          .card-body
+            if safeRuleCategories.length
+              .detail-category-list
+                each category in safeRuleCategories
+                  .detail-category-block(id=`rule-category-${category.ID}`)
+                    if viewMode !== 'participant'
+                      form.detail-category-heading(method="post" action=`/tournaments/${tournament.ID}/rule-categories/${category.ID}`)
+                        input(type="hidden" name="returnTo" value=`#rule-category-${category.ID}`)
+                        input.form-control(
+                          type="text"
+                          name="title"
+                          value=category.TITLE
+                          required
+                        )
+                        button.btn.btn-outline-light(type="submit")
+                          i.bi.bi-save.me-1
+                          | Save
+                      if category.ITEMS && category.ITEMS.length
+                        .detail-item-list
+                          each item in category.ITEMS
+                            form.rule-item-row(method="post" action=`/tournaments/${tournament.ID}/rule-categories/${category.ID}/items/${item.ID}`)
+                              input(type="hidden" name="returnTo" value=`#rule-category-${category.ID}`)
+                              .rule-item-fields
+                                div
+                                  label.form-label(for=`rule-heading-${item.ID}`) Heading
+                                  input.form-control(
+                                    id=`rule-heading-${item.ID}`
+                                    type="text"
+                                    name="heading"
+                                    value=item.HEADING || ''
+                                    placeholder="e.g. Perks"
+                                  )
+                                div
+                                  label.form-label(for=`rule-body-${item.ID}`) Body
+                                  textarea.form-control(
+                                    id=`rule-body-${item.ID}`
+                                    name="body"
+                                    rows="2"
+                                    placeholder="Rule text..."
+                                  )= item.BODY || ''
+                              button.btn.btn-outline-light(type="submit")
+                                i.bi.bi-save.me-1
+                                | Save
+                      else
+                        p.text-secondary.mb-3 No rule items yet.
+                      form.rule-item-add-row(method="post" action=`/tournaments/${tournament.ID}/rule-categories/${category.ID}/items`)
+                        input(type="hidden" name="returnTo" value=`#rule-category-${category.ID}`)
+                        .rule-item-fields
+                          div
+                            label.form-label(for=`new-rule-heading-${category.ID}`) Heading
+                            input.form-control(
+                              id=`new-rule-heading-${category.ID}`
+                              type="text"
+                              name="heading"
+                              placeholder="e.g. Perks"
+                            )
+                          div
+                            label.form-label(for=`new-rule-body-${category.ID}`) Body
+                            textarea.form-control(
+                              id=`new-rule-body-${category.ID}`
+                              name="body"
+                              rows="2"
+                              placeholder="Rule text..."
+                            )
+                        button.btn.btn-primary(type="submit")
+                          i.bi.bi-plus-lg.me-1
+                          | Add item
+                    else
+                      .detail-category-title
+                        i.bi.bi-chevron-right
+                        h3.h5.mb-0= category.TITLE
+                      if category.ITEMS && category.ITEMS.length
+                        .detail-read-list
+                          each item in category.ITEMS
+                            .detail-read-item
+                              if item.HEADING
+                                strong= item.HEADING
+                              if item.BODY
+                                p.mb-0= item.BODY
+                      else
+                        p.text-secondary.mb-0 No rule items yet.
+            else
+              p.text-secondary.mb-3 No rule categories yet.
+            if viewMode !== 'participant'
+              form.detail-category-add-row(method="post" action=`/tournaments/${tournament.ID}/rule-categories`)
+                .detail-category-add-fields
+                  div
+                    label.form-label(for="new-rule-category-title") New category
+                    input#new-rule-category-title.form-control(
+                      type="text"
+                      name="title"
+                      placeholder="e.g. Bans"
+                      required
+                    )
+                button.btn.btn-primary(type="submit")
+                  i.bi.bi-plus-lg.me-1
+                  | Add category
+
+        section#staff.card.border-dark.text-bg-dark.create-card.mt-4
+          .card-header Staff
+          .card-body
+            if safeStaffCategories.length
+              .detail-category-list
+                each category in safeStaffCategories
+                  .detail-category-block(id=`staff-category-${category.ID}`)
+                    if viewMode !== 'participant'
+                      form.detail-category-heading(method="post" action=`/tournaments/${tournament.ID}/staff-categories/${category.ID}`)
+                        input(type="hidden" name="returnTo" value=`#staff-category-${category.ID}`)
+                        input.form-control(
+                          type="text"
+                          name="title"
+                          value=category.TITLE
+                          required
+                        )
+                        button.btn.btn-outline-light(type="submit")
+                          i.bi.bi-save.me-1
+                          | Save
+                      if category.MEMBERS && category.MEMBERS.length
+                        .detail-item-list
+                          each member in category.MEMBERS
+                            form.staff-member-row(method="post" action=`/tournaments/${tournament.ID}/staff-categories/${category.ID}/members/${member.ID}`)
+                              input(type="hidden" name="returnTo" value=`#staff-category-${category.ID}`)
+                              .staff-member-fields
+                                div
+                                  label.form-label(for=`staff-name-${member.ID}`) Name
+                                  input.form-control(
+                                    id=`staff-name-${member.ID}`
+                                    type="text"
+                                    name="name"
+                                    value=member.NAME
+                                    required
+                                  )
+                                div
+                                  label.form-label(for=`staff-social-label-${member.ID}`) Social label
+                                  input.form-control(
+                                    id=`staff-social-label-${member.ID}`
+                                    type="text"
+                                    name="socialLabel"
+                                    value=member.SOCIAL_LABEL || ''
+                                    placeholder="Twitch"
+                                  )
+                                div
+                                  label.form-label(for=`staff-social-url-${member.ID}`) Social URL
+                                  input.form-control(
+                                    id=`staff-social-url-${member.ID}`
+                                    type="url"
+                                    name="socialUrl"
+                                    value=member.SOCIAL_URL || ''
+                                    placeholder="https://..."
+                                  )
+                              button.btn.btn-outline-light(type="submit")
+                                i.bi.bi-save.me-1
+                                | Save
+                      else
+                        p.text-secondary.mb-3 No staff members yet.
+                      form.staff-member-add-row(method="post" action=`/tournaments/${tournament.ID}/staff-categories/${category.ID}/members`)
+                        input(type="hidden" name="returnTo" value=`#staff-category-${category.ID}`)
+                        .staff-member-fields
+                          div
+                            label.form-label(for=`new-staff-name-${category.ID}`) Name
+                            input.form-control(
+                              id=`new-staff-name-${category.ID}`
+                              type="text"
+                              name="name"
+                              placeholder="e.g. RRattenmesser"
+                              required
+                            )
+                          div
+                            label.form-label(for=`new-staff-social-label-${category.ID}`) Social label
+                            input.form-control(id=`new-staff-social-label-${category.ID}` type="text" name="socialLabel" placeholder="Twitch")
+                          div
+                            label.form-label(for=`new-staff-social-url-${category.ID}`) Social URL
+                            input.form-control(id=`new-staff-social-url-${category.ID}` type="url" name="socialUrl" placeholder="https://...")
+                        button.btn.btn-primary(type="submit")
+                          i.bi.bi-plus-lg.me-1
+                          | Add member
+                    else
+                      .detail-category-title
+                        i.bi.bi-shield
+                        h3.h5.mb-0= category.TITLE
+                      if category.MEMBERS && category.MEMBERS.length
+                        .detail-read-list
+                          each member in category.MEMBERS
+                            .detail-read-item
+                              strong= member.NAME
+                              if member.SOCIAL_URL
+                                a.ms-2(href=member.SOCIAL_URL target="_blank" rel="noopener")= member.SOCIAL_LABEL || 'Social'
+                              else if member.SOCIAL_LABEL
+                                small.text-secondary.ms-2= member.SOCIAL_LABEL
+                      else
+                        p.text-secondary.mb-0 No staff members yet.
+            else
+              p.text-secondary.mb-3 No staff categories yet.
+            if viewMode !== 'participant'
+              form.detail-category-add-row(method="post" action=`/tournaments/${tournament.ID}/staff-categories`)
+                .detail-category-add-fields
+                  div
+                    label.form-label(for="new-staff-category-title") New category
+                    input#new-staff-category-title.form-control(
+                      type="text"
+                      name="title"
+                      placeholder="e.g. Casters"
+                      required
+                    )
+                button.btn.btn-primary(type="submit")
+                  i.bi.bi-plus-lg.me-1
+                  | Add category
+
+      .col-lg-4
+        .sticky-lg-top.create-tournament-info
+          if viewMode === 'participant' && tournament.SCORING_MODE === 'points'
+            section#rankings.card.border-dark.text-bg-dark.create-card.info-card
+              .card-header Ranking
+              .card-body
+                if safeRankings.length
+                  .ranking-table.ranking-table-compact
+                    each team in safeRankings
+                      .ranking-row(class=team.RANK === 1 ? 'rank-gold' : team.RANK === 2 ? 'rank-silver' : team.RANK === 3 ? 'rank-bronze' : '')
+                        .ranking-position= team.RANK_LABEL || team.RANK
+                        .ranking-team
+                          strong= team.NAME
+                          if team.SHORTHAND
+                            span= team.SHORTHAND
+                        .ranking-stat
+                          small Score
+                          strong= Number(team.POINTS || 0).toFixed(2)
+                        .ranking-stat
+                          small Matches
+                          strong= team.MATCHES_PLAYED
+                else
+                  p.text-secondary.mb-0 No teams yet.
+          else
+            .card.border-dark.text-bg-dark.create-card.info-card
+              .card-header Next Steps
+              .card-body
+                ul.mb-0
+                  li Rename placeholder teams and assign captains.
+                  li Add players and mark one team leader per team.
+                  li Fill out rule and staff categories.
+                  li Add match days and scores once scheduling is known.
+            section#organizers.card.border-dark.text-bg-dark.create-card.info-card.mt-4
+              .card-header Organizers
+              .card-body
+                if safeAdmins.length
+                  .organizer-list
+                    each admin in safeAdmins
+                      .organizer-chip
+                        i.bi.bi-person-gear
+                        span= admin.NAME
+                else
+                  p.text-secondary.mb-3 No organizers yet.
+                form.organizer-add-row(method="post" action=`/tournaments/${tournament.ID}/admins`)
+                  label.form-label(for="new-admin-username") Add by username
+                  .organizer-add-fields
+                    input#new-admin-username.form-control(
+                      type="text"
+                      name="username"
+                      placeholder="Registered username"
+                      required
+                    )
+                    button.btn.btn-primary(type="submit")
+                      i.bi.bi-plus-lg.me-1
+                      | Add
+
+block modals
+  if viewMode === 'participant'
+    .modal.fade.view-info-modal#view-teams-modal(tabindex="-1" aria-labelledby="view-teams-modal-title" aria-hidden="true")
+      .modal-dialog.modal-xl.modal-fullscreen-md-down.modal-dialog-scrollable
+        .modal-content.text-bg-dark
+          .modal-header
+            h5.modal-title#view-teams-modal-title Teams
+            button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal" aria-label="Close")
+          .modal-body
+            if teams && teams.length
+              .team-chip-grid
+                each team in teams
+                  .team-chip
+                    .team-chip-heading
+                      span.team-chip-name= team.NAME
+                      if team.SHORTHAND
+                        span.team-chip-short= team.SHORTHAND
+                    if team.PLAYERS && team.PLAYERS.length
+                      .team-chip-players
+                        - const leaders = (team.PLAYERS || []).filter((player) => player.IS_TEAM_LEADER)
+                        - const roster = (team.PLAYERS || []).filter((player) => !player.IS_TEAM_LEADER)
+                        if leaders.length
+                          .team-chip-leaders
+                            each player in leaders
+                              span.team-leader-pill
+                                i.bi.bi-star-fill
+                                | #{player.NAME}
+                        if roster.length
+                          .team-chip-roster
+                            each player in roster
+                              span= player.NAME
+            else
+              p.text-secondary.mb-0 No teams yet.
+
+    .modal.fade.view-info-modal#view-scoring-modal(tabindex="-1" aria-labelledby="view-scoring-modal-title" aria-hidden="true")
+      .modal-dialog.modal-lg.modal-fullscreen-md-down.modal-dialog-scrollable
+        .modal-content.text-bg-dark
+          .modal-header
+            h5.modal-title#view-scoring-modal-title Scoring
+            button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal" aria-label="Close")
+          .modal-body
+            if scoringCategories && scoringCategories.length
+              .participant-scoring-grid
+                each category in scoringCategories
+                  .participant-scoring-card
+                    .participant-scoring-name= category.DISPLAY_NAME
+                    .participant-scoring-meta
+                      span
+                        small Points
+                        strong= Number(category.POINTS_PER_OCCURRENCE || 0).toFixed(2)
+                      span
+                        small Max
+                        strong= category.MAX_OCCURRENCES
+            else
+              p.text-secondary.mb-0 No scoring categories yet.
+
+    .modal.fade.view-info-modal#view-rules-modal(tabindex="-1" aria-labelledby="view-rules-modal-title" aria-hidden="true")
+      .modal-dialog.modal-xl.modal-fullscreen-md-down.modal-dialog-scrollable
+        .modal-content.text-bg-dark
+          .modal-header
+            h5.modal-title#view-rules-modal-title Rules
+            button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal" aria-label="Close")
+          .modal-body
+            if ruleCategories && ruleCategories.length
+              .detail-category-list
+                each category in ruleCategories
+                  .detail-category-block
+                    .detail-category-title
+                      i.bi.bi-chevron-right
+                      h3.h5.mb-0= category.TITLE
+                    if category.ITEMS && category.ITEMS.length
+                      .detail-read-list
+                        each item in category.ITEMS
+                          .detail-read-item
+                            if item.HEADING
+                              strong= item.HEADING
+                            if item.BODY
+                              p.mb-0= item.BODY
+                    else
+                      p.text-secondary.mb-0 No rule items yet.
+            else
+              p.text-secondary.mb-0 No rule categories yet.
+
+    .modal.fade.view-info-modal#view-staff-modal(tabindex="-1" aria-labelledby="view-staff-modal-title" aria-hidden="true")
+      .modal-dialog.modal-lg.modal-fullscreen-md-down.modal-dialog-scrollable
+        .modal-content.text-bg-dark
+          .modal-header
+            h5.modal-title#view-staff-modal-title Staff
+            button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal" aria-label="Close")
+          .modal-body
+            if staffCategories && staffCategories.length
+              .detail-category-list
+                each category in staffCategories
+                  .detail-category-block
+                    .detail-category-title
+                      i.bi.bi-shield
+                      h3.h5.mb-0= category.TITLE
+                    if category.MEMBERS && category.MEMBERS.length
+                      .detail-read-list
+                        each member in category.MEMBERS
+                          .detail-read-item
+                            strong= member.NAME
+                            if member.SOCIAL_URL
+                              a.ms-2(href=member.SOCIAL_URL target="_blank" rel="noopener")= member.SOCIAL_LABEL || 'Social'
+                            else if member.SOCIAL_LABEL
+                              small.text-secondary.ms-2= member.SOCIAL_LABEL
+                    else
+                      p.text-secondary.mb-0 No staff members yet.
+            else
+              p.text-secondary.mb-0 No staff categories yet.
+
+block scripts
+  script.
+    function showTournamentShareToast(message, type) {
+      var toast = document.createElement('div');
+      toast.className = 'alert alert-' + (type || 'success') + ' position-fixed top-0 start-50 translate-middle-x mt-3 shadow tournament-share-toast';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      window.setTimeout(function () {
+        toast.remove();
+      }, 2600);
+    }
+
+    function copyTournamentShareUrl(path) {
+      var shareUrl = new URL(path, window.location.origin).toString();
+
+      if (navigator.clipboard && window.isSecureContext) {
+        return navigator.clipboard.writeText(shareUrl).then(function () {
+          return shareUrl;
+        });
+      }
+
+      var input = document.createElement('input');
+      input.value = shareUrl;
+      input.setAttribute('readonly', '');
+      input.style.position = 'fixed';
+      input.style.opacity = '0';
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      input.remove();
+
+      return Promise.resolve(shareUrl);
+    }
+
+    document.addEventListener('click', function (event) {
+      var shareButton = event.target.closest('.tournament-share-button');
+
+      if (!shareButton) {
+        return;
+      }
+
+      copyTournamentShareUrl(shareButton.dataset.shareUrl).then(function () {
+        showTournamentShareToast('View page link copied.');
+      }).catch(function () {
+        showTournamentShareToast('Could not copy link.', 'danger');
+      });
+    });
+
+    document.addEventListener('click', function (event) {
+      var trigger = event.target.closest('[data-bs-toggle="modal"][data-bs-target^="#score-modal-"]');
+
+      if (!trigger) {
+        return;
+      }
+
+      var modal = document.querySelector(trigger.getAttribute('data-bs-target'));
+
+      if (modal && modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+      }
+    }, true);
+
+    window.addEventListener('load', function () {
+      if (!window.location.hash) {
+        return;
+      }
+
+      var target = document.getElementById(window.location.hash.slice(1));
+      if (target) {
+        target.scrollIntoView({ block: 'start' });
+      }
+    });

@@ -1,0 +1,93 @@
+extends ../layout.pug
+
+block content
+  .tournament-create-page.my-tournaments-page
+    .create-page-hero
+      div
+        p.create-page-kicker Tournament Hub
+        h1.mb-1 My Tournaments
+        p.text-secondary.mb-0 Tournaments you organize or participate in.
+      a.btn.btn-primary(href="/tournaments/create")
+        i.bi.bi-plus-lg.me-1
+        | Create Tournament
+
+    .row.g-4
+      .col-lg-8
+        section.card.border-dark.text-bg-dark.create-card
+          .card-header Organizer
+          .card-body
+            if createdTournaments.length
+              .my-tournament-list
+                each tournament in createdTournaments
+                  article.my-tournament-item
+                    .my-tournament-main
+                      p.create-page-kicker.mb-1= tournament.SCORING_MODE === 'wl' ? 'Win / Loss' : 'Point Based'
+                      h2.h5.mb-2= tournament.NAME
+                      .my-tournament-meta
+                        span
+                          i.bi.bi-calendar-event.me-1
+                          | #{tournament.STARTS_AT_DISPLAY}
+                        span
+                          i.bi.bi-controller.me-1
+                          | #{tournament.GAMES_PER_MATCH} games per match
+                        span
+                          i.bi.bi-people.me-1
+                          | #{tournament.TEAM_COUNT} teams
+                      if tournament.DESCRIPTION
+                        p.text-secondary.mt-2.mb-0= tournament.DESCRIPTION
+                    .my-tournament-actions
+                      a.btn.btn-outline-light.btn-sm(href=`/tournaments/${tournament.ID}`)
+                        i.bi.bi-sliders.me-1
+                        | Organizer
+                      a.btn.btn-outline-secondary.btn-sm(href=`/tournaments/${tournament.ID}/view`)
+                        i.bi.bi-eye.me-1
+                        | View
+            else
+              .empty-state
+                i.bi.bi-trophy
+                h2.h5 No organized tournaments yet
+                p.text-secondary.mb-3 Create your first tournament shell and it will show up here.
+                a.btn.btn-primary(href="/tournaments/create") Create Tournament
+
+        section.card.border-dark.text-bg-dark.create-card.mt-4
+          .card-header Participant
+          .card-body
+            if participantTournaments.length
+              .my-tournament-list
+                each tournament in participantTournaments
+                  article.my-tournament-item
+                    .my-tournament-main
+                      p.create-page-kicker.mb-1 Participant
+                      h2.h5.mb-2= tournament.NAME
+                      .my-tournament-meta
+                        span
+                          i.bi.bi-calendar-event.me-1
+                          | #{tournament.STARTS_AT_DISPLAY}
+                        if tournament.TEAM_NAME
+                          span
+                            i.bi.bi-people.me-1
+                            | #{tournament.TEAM_NAME}
+                        span
+                          i.bi.bi-person.me-1
+                          | #{tournament.PLAYER_NAME}
+                        if tournament.IS_TEAM_LEADER
+                          span
+                            i.bi.bi-star.me-1
+                            | Team leader
+                    .my-tournament-actions
+                      a.btn.btn-outline-light.btn-sm(href=`/tournaments/${tournament.ID}/view`) View
+            else
+              .empty-state.empty-state-compact
+                i.bi.bi-person-badge
+                h2.h5 No participant tournaments yet
+                p.text-secondary.mb-0 You will show up here when a roster player name matches your account name.
+
+      .col-lg-4
+        .sticky-lg-top.create-tournament-info
+          .card.border-dark.text-bg-dark.create-card.info-card
+            .card-header What Shows Here
+            .card-body
+              ul.mb-0
+                li Tournaments you created or administer.
+                li Tournaments where a roster player matches your account name.
+                li Quick links to organizer and public view pages.

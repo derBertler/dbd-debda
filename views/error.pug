@@ -1,0 +1,8 @@
+extends layout
+
+block content
+  h1= message
+  h2= error && error.status ? error.status : 'Unknown'
+  if error && error.stack
+    pre #{error.stack}
+  a(href="/") Back to Main
