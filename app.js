@@ -105,7 +105,7 @@ app.use(function(err, req, res, next) {
 
 var server = http.createServer(app);
 
-server.listen(port);
+server.listen(port, '127.0.0.1');
 server.on('error', onError);
 server.on('listening', onListening);
 
@@ -153,17 +153,6 @@ function onListening() {
     ? 'pipe ' + addr
     : 'port ' + addr.port;
   debug('Listening on ' + bind);
-}
-
-// Post install migration
-if (process.env.NODE_ENV === 'production') {
-  require('child_process').exec(
-    'npx db-migrate up -e prod --config ./database.json',
-    (err, stdout, stderr) => {
-      if (err) console.error(stderr);
-      else console.log(stdout);
-    }
-  );
 }
 
 module.exports = app;
