@@ -122,6 +122,26 @@ block content
                               maxlength="32"
                               placeholder="e.g. FCT"
                             )
+                          if tournament.ALLOW_KILLER_BANS
+                            div
+                              label.form-label(for=`team-killer-bans-${team.ID}`) Killer bans
+                                span.text-secondary  (#{tournament.KILLER_BAN_COUNT || 0} max, one per line)
+                              textarea.form-control(
+                                id=`team-killer-bans-${team.ID}`
+                                name="killerBans"
+                                rows=Math.max(2, Math.min(Number(tournament.KILLER_BAN_COUNT || 0), 5))
+                                placeholder="e.g. The Nurse"
+                              )= team.KILLER_BANS_TEXT || ''
+                          if tournament.ALLOW_MAP_BANS
+                            div
+                              label.form-label(for=`team-map-bans-${team.ID}`) Map bans
+                                span.text-secondary  (#{tournament.MAP_BAN_COUNT || 0} max, one per line)
+                              textarea.form-control(
+                                id=`team-map-bans-${team.ID}`
+                                name="mapBans"
+                                rows=Math.max(2, Math.min(Number(tournament.MAP_BAN_COUNT || 0), 5))
+                                placeholder="e.g. Springwood"
+                              )= team.MAP_BANS_TEXT || ''
                         button.btn.btn-outline-light(type="submit")
                           i.bi.bi-save.me-1
                           | Save
@@ -248,6 +268,20 @@ block content
                           .team-chip-roster
                             each player in roster
                               span= player.NAME
+                    if (tournament.ALLOW_KILLER_BANS && team.KILLER_BAN_LIST && team.KILLER_BAN_LIST.length) || (tournament.ALLOW_MAP_BANS && team.MAP_BAN_LIST && team.MAP_BAN_LIST.length)
+                      .team-ban-summary
+                        if tournament.ALLOW_KILLER_BANS && team.KILLER_BAN_LIST && team.KILLER_BAN_LIST.length
+                          .team-ban-group
+                            strong Killer bans
+                            .team-ban-list
+                              each ban in team.KILLER_BAN_LIST
+                                span= ban
+                        if tournament.ALLOW_MAP_BANS && team.MAP_BAN_LIST && team.MAP_BAN_LIST.length
+                          .team-ban-group
+                            strong Map bans
+                            .team-ban-list
+                              each ban in team.MAP_BAN_LIST
+                                span= ban
             else
               p.text-secondary.mb-0 No teams yet.
 
@@ -746,6 +780,46 @@ block content
                   li Add players and mark one team leader per team.
                   li Fill out rule and staff categories.
                   li Add match days and scores once scheduling is known.
+            section#ban-config.card.border-dark.text-bg-dark.create-card.info-card.mt-4
+              .card-header Ban Configuration
+              .card-body
+                form(method="post" action=`/tournaments/${tournament.ID}/ban-config`)
+                  .ban-config-panel
+                    .ban-config-card
+                      .form-check.form-switch.mb-2
+                        input#organizer-allow-killer-bans.form-check-input(
+                          type="checkbox"
+                          name="allowKillerBans"
+                          checked=Boolean(tournament.ALLOW_KILLER_BANS)
+                        )
+                        label.form-check-label(for="organizer-allow-killer-bans") Killer bans
+                      label.form-label(for="organizer-killer-ban-count") Killer bans per team
+                      input#organizer-killer-ban-count.form-control(
+                        type="number"
+                        name="killerBanCount"
+                        min="0"
+                        step="1"
+                        value=tournament.KILLER_BAN_COUNT || 0
+                      )
+                    .ban-config-card
+                      .form-check.form-switch.mb-2
+                        input#organizer-allow-map-bans.form-check-input(
+                          type="checkbox"
+                          name="allowMapBans"
+                          checked=Boolean(tournament.ALLOW_MAP_BANS)
+                        )
+                        label.form-check-label(for="organizer-allow-map-bans") Map bans
+                      label.form-label(for="organizer-map-ban-count") Map bans per team
+                      input#organizer-map-ban-count.form-control(
+                        type="number"
+                        name="mapBanCount"
+                        min="0"
+                        step="1"
+                        value=tournament.MAP_BAN_COUNT || 0
+                      )
+                  button.btn.btn-primary.mt-3(type="submit")
+                    i.bi.bi-save.me-1
+                    | Save bans
             section#organizers.card.border-dark.text-bg-dark.create-card.info-card.mt-4
               .card-header Organizers
               .card-body
@@ -801,6 +875,20 @@ block modals
                           .team-chip-roster
                             each player in roster
                               span= player.NAME
+                    if (tournament.ALLOW_KILLER_BANS && team.KILLER_BAN_LIST && team.KILLER_BAN_LIST.length) || (tournament.ALLOW_MAP_BANS && team.MAP_BAN_LIST && team.MAP_BAN_LIST.length)
+                      .team-ban-summary
+                        if tournament.ALLOW_KILLER_BANS && team.KILLER_BAN_LIST && team.KILLER_BAN_LIST.length
+                          .team-ban-group
+                            strong Killer bans
+                            .team-ban-list
+                              each ban in team.KILLER_BAN_LIST
+                                span= ban
+                        if tournament.ALLOW_MAP_BANS && team.MAP_BAN_LIST && team.MAP_BAN_LIST.length
+                          .team-ban-group
+                            strong Map bans
+                            .team-ban-list
+                              each ban in team.MAP_BAN_LIST
+                                span= ban
             else
               p.text-secondary.mb-0 No teams yet.
 

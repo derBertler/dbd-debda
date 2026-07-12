@@ -12,8 +12,6 @@ require("dotenv").config();
 
 const fs = require("fs");
 
-require('fs').writeFileSync('/home/skyblock/dbd-turniere.de/startup-test.txt', 'app.js was loaded\n');
-
 process.on("uncaughtException", (err) => {
   fs.appendFileSync("startup-error.log", `[uncaughtException]\n${err.stack}\n`);
   process.exit(1);
@@ -120,18 +118,11 @@ app.use(function (err, req, res, next) {
   res.render("error");
 });
 
-if (require.main === module) {
-  var server = http.createServer(app);
+var server = http.createServer(app);
 
-  fs.appendFileSync(
-    "startup-error.log",
-    `Starting app on PORT=${process.env.PORT}\n`,
-  );
-
-  server.listen(port, "127.0.0.1");
-  server.on("error", onError);
-  server.on("listening", onListening);
-}
+server.listen(port, "127.0.0.1");
+server.on("error", onError);
+server.on("listening", onListening);
 
 function normalizePort(val) {
   var port = parseInt(val, 10);

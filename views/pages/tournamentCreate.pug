@@ -73,6 +73,41 @@ block content
                         checked=form.scoringMode === 'wl'
                       )
                       label.form-check-label(for="scoring-mode-wl") Win / loss based
+                .tournament-form-grid-wide
+                  label.form-label Team bans
+                  .ban-config-grid
+                    .ban-config-card
+                      .form-check.form-switch.mb-2
+                        input#allow-killer-bans.form-check-input(
+                          type="checkbox"
+                          name="allowKillerBans"
+                          checked=Boolean(form.allowKillerBans)
+                        )
+                        label.form-check-label(for="allow-killer-bans") Killer bans
+                      label.form-label(for="killer-ban-count") Killer bans per team
+                      input#killer-ban-count.form-control(
+                        type="number"
+                        name="killerBanCount"
+                        min="0"
+                        step="1"
+                        value=form.killerBanCount || 0
+                      )
+                    .ban-config-card
+                      .form-check.form-switch.mb-2
+                        input#allow-map-bans.form-check-input(
+                          type="checkbox"
+                          name="allowMapBans"
+                          checked=Boolean(form.allowMapBans)
+                        )
+                        label.form-check-label(for="allow-map-bans") Map bans
+                      label.form-label(for="map-ban-count") Map bans per team
+                      input#map-ban-count.form-control(
+                        type="number"
+                        name="mapBanCount"
+                        min="0"
+                        step="1"
+                        value=form.mapBanCount || 0
+                      )
               .mt-3
                 label.form-label(for="description") Notes
                 textarea#description.form-control(name="description" rows="4" placeholder="Format, timing, organizer notes...")= form.description || ''

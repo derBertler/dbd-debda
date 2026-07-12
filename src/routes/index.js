@@ -60,8 +60,8 @@ module.exports = function createIndexRouter() {
       const [tournamentResult] = await connection.execute(
         [
           'INSERT INTO `TOURNAMENT`',
-          '(`VERSION`, `NAME`, `DESCRIPTION`, `STARTS_AT`, `ENDS_AT`, `SCORING_MODE`, `GAMES_PER_MATCH`, `CREATED_AT`)',
-          'VALUES (?, ?, ?, ?, ?, ?, ?, NOW())'
+          '(`VERSION`, `NAME`, `DESCRIPTION`, `STARTS_AT`, `ENDS_AT`, `SCORING_MODE`, `GAMES_PER_MATCH`, `ALLOW_KILLER_BANS`, `KILLER_BAN_COUNT`, `ALLOW_MAP_BANS`, `MAP_BAN_COUNT`, `CREATED_AT`)',
+          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())'
         ].join(' '),
         [
           '1',
@@ -70,7 +70,11 @@ module.exports = function createIndexRouter() {
           form.startsAt || null,
           form.endsAt || null,
           form.scoringMode,
-          form.gamesPerMatch
+          form.gamesPerMatch,
+          form.allowKillerBans,
+          form.killerBanCount,
+          form.allowMapBans,
+          form.mapBanCount
         ]
       );
       const tournamentId = tournamentResult.insertId;
@@ -144,7 +148,8 @@ module.exports = function createIndexRouter() {
 
   router.post('/tournaments/:id/teams', requireLogin, requireTournamentAdmin, async function addTournamentTeam(req, res, next) {
     try {
-      const team = normalizeTeamForm(req.body);
+      const banConfig = await getTournamentBanConfig(req.tournamentId);
+      const team = normalizeTeamForm(req.body, banConfig);
 
       if (!team.name) {
         return res.redirect(`/tournaments/${req.tournamentId}#teams`);
@@ -156,8 +161,8 @@ module.exports = function createIndexRouter() {
       );
 
       const [result] = await db.execute(
-        'INSERT INTO `TOURNAMENT_TEAM` (`VERSION`, `TOURNAMENT_ID`, `NAME`, `SHORTHAND`, `SORT_ORDER`, `CREATED_AT`) VALUES (?, ?, ?, ?, ?, NOW())',
-        ['1', req.tournamentId, team.name, team.shorthand || null, sortOrder.nextSortOrder]
+        'INSERT INTO `TOURNAMENT_TEAM` (`VERSION`, `TOURNAMENT_ID`, `NAME`, `SHORTHAND`, `KILLER_BANS`, `MAP_BANS`, `SORT_ORDER`, `CREATED_AT`) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
+        ['1', req.tournamentId, team.name, team.shorthand || null, team.killerBansJson, team.mapBansJson, sortOrder.nextSortOrder]
       );
 
       res.redirect(getTeamRedirectPath(req.tournamentId, result.insertId));
@@ -181,7 +186,6 @@ module.exports = function createIndexRouter() {
       const user = users[0];
 
       if (!user) {
-        
         return res.redirect('/tournaments/' + req.tournamentId + '#organizers');
       }
 
@@ -202,10 +206,68 @@ module.exports = function createIndexRouter() {
     }
   });
 
+  router.post('/tournaments/:id/ban-config', requireLogin, requireTournamentAdmin, async function updateTournamentBanConfig(req, res, next) {
+    const banConfig = normalizeBanConfigForm(req.body);
+    let connection;
+
+    try {
+      connection = await db.getConnection();
+      await connection.beginTransaction();
+
+      await connection.execute(
+        [
+          'UPDATE `TOURNAMENT`',
+          'SET `ALLOW_KILLER_BANS` = ?, `KILLER_BAN_COUNT` = ?, `ALLOW_MAP_BANS` = ?, `MAP_BAN_COUNT` = ?, `UPDATED_AT` = NOW()',
+          'WHERE `ID` = ?'
+        ].join(' '),
+        [
+          banConfig.allowKillerBans,
+          banConfig.killerBanCount,
+          banConfig.allowMapBans,
+          banConfig.mapBanCount,
+          req.tournamentId
+        ]
+      );
+
+      const [teams] = await connection.execute(
+        'SELECT `ID`, `KILLER_BANS`, `MAP_BANS` FROM `TOURNAMENT_TEAM` WHERE `TOURNAMENT_ID` = ?',
+        [req.tournamentId]
+      );
+
+      for (const team of teams) {
+        const killerBans = banConfig.allowKillerBans
+          ? normalizeBanList(parseBanList(team.KILLER_BANS), banConfig.killerBanCount)
+          : [];
+        const mapBans = banConfig.allowMapBans
+          ? normalizeBanList(parseBanList(team.MAP_BANS), banConfig.mapBanCount)
+          : [];
+
+        await connection.execute(
+          'UPDATE `TOURNAMENT_TEAM` SET `KILLER_BANS` = ?, `MAP_BANS` = ?, `UPDATED_AT` = NOW() WHERE `ID` = ? AND `TOURNAMENT_ID` = ?',
+          [stringifyBanList(killerBans), stringifyBanList(mapBans), team.ID, req.tournamentId]
+        );
+      }
+
+      await connection.commit();
+      res.redirect('/tournaments/' + req.tournamentId + '#ban-config');
+    } catch (error) {
+      if (connection) {
+        await connection.rollback();
+      }
+
+      next(error);
+    } finally {
+      if (connection) {
+        connection.release();
+      }
+    }
+  });
+
   router.post('/tournaments/:id/teams/:teamId', requireLogin, requireTournamentAdmin, async function updateTournamentTeam(req, res, next) {
     try {
       const teamId = normalizeInteger(req.params.teamId, 0, 1);
-      const team = normalizeTeamForm(req.body);
+      const banConfig = await getTournamentBanConfig(req.tournamentId);
+      const team = normalizeTeamForm(req.body, banConfig);
 
       if (!teamId || !team.name) {
         return res.redirect(getTeamRedirectPath(req.tournamentId, teamId, req.body.returnTo));
@@ -214,10 +276,10 @@ module.exports = function createIndexRouter() {
       const [result] = await db.execute(
         [
           'UPDATE `TOURNAMENT_TEAM`',
-          'SET `NAME` = ?, `SHORTHAND` = ?, `UPDATED_AT` = NOW()',
+          'SET `NAME` = ?, `SHORTHAND` = ?, `KILLER_BANS` = ?, `MAP_BANS` = ?, `UPDATED_AT` = NOW()',
           'WHERE `ID` = ? AND `TOURNAMENT_ID` = ?'
         ].join(' '),
-        [team.name, team.shorthand || null, teamId, req.tournamentId]
+        [team.name, team.shorthand || null, team.killerBansJson, team.mapBansJson, teamId, req.tournamentId]
       );
 
       if (result.affectedRows === 0) {
@@ -1018,6 +1080,10 @@ function createDefaultTournamentForm() {
     scoringMode: 'points',
     gamesPerMatch: 2,
     teamSlotCount: 8,
+    allowKillerBans: false,
+    killerBanCount: 0,
+    allowMapBans: false,
+    mapBanCount: 0,
     createDefaultRules: true,
     createDefaultStaff: true,
     scoringCategories: [
@@ -1068,6 +1134,7 @@ function normalizeTournamentForm(body) {
   const points = toArray(body.scoringPointsPerOccurrence);
   const maxOccurrences = toArray(body.scoringMaxOccurrences);
   const rowCount = Math.max(displayNames.length, points.length, maxOccurrences.length, 1);
+  const banConfig = normalizeBanConfigForm(body);
 
   return {
     name: normalizeText(body.name),
@@ -1077,6 +1144,7 @@ function normalizeTournamentForm(body) {
     scoringMode: ['points', 'wl'].includes(body.scoringMode) ? body.scoringMode : defaultForm.scoringMode,
     gamesPerMatch: normalizeInteger(body.gamesPerMatch, defaultForm.gamesPerMatch, 1),
     teamSlotCount: normalizeInteger(body.teamSlotCount, defaultForm.teamSlotCount, 0),
+    ...banConfig,
     createDefaultRules: body.createDefaultRules === 'on',
     createDefaultStaff: body.createDefaultStaff === 'on',
     scoringCategories: Array.from({ length: rowCount }, (_, index) => ({
@@ -1088,10 +1156,33 @@ function normalizeTournamentForm(body) {
   };
 }
 
-function normalizeTeamForm(body) {
+function normalizeBanConfigForm(body) {
+  const allowKillerBans = body.allowKillerBans === 'on';
+  const allowMapBans = body.allowMapBans === 'on';
+
+  return {
+    allowKillerBans,
+    killerBanCount: allowKillerBans ? normalizeInteger(body.killerBanCount, 0, 0) : 0,
+    allowMapBans,
+    mapBanCount: allowMapBans ? normalizeInteger(body.mapBanCount, 0, 0) : 0
+  };
+}
+
+function normalizeTeamForm(body, banConfig = {}) {
+  const killerBans = banConfig.allowKillerBans
+    ? normalizeBanList(body.killerBans, banConfig.killerBanCount)
+    : [];
+  const mapBans = banConfig.allowMapBans
+    ? normalizeBanList(body.mapBans, banConfig.mapBanCount)
+    : [];
+
   return {
     name: normalizeText(body.name),
-    shorthand: normalizeText(body.shorthand)
+    shorthand: normalizeText(body.shorthand),
+    killerBans,
+    mapBans,
+    killerBansJson: stringifyBanList(killerBans),
+    mapBansJson: stringifyBanList(mapBans)
   };
 }
 
@@ -1256,6 +1347,25 @@ async function staffCategoryBelongsToTournament(categoryId, tournamentId) {
   return categories.length > 0;
 }
 
+async function getTournamentBanConfig(tournamentId) {
+  const [[tournament]] = await db.execute(
+    [
+      'SELECT `ALLOW_KILLER_BANS`, `KILLER_BAN_COUNT`, `ALLOW_MAP_BANS`, `MAP_BAN_COUNT`',
+      'FROM `TOURNAMENT`',
+      'WHERE `ID` = ?',
+      'LIMIT 1'
+    ].join(' '),
+    [tournamentId]
+  );
+
+  return {
+    allowKillerBans: Boolean(tournament && tournament.ALLOW_KILLER_BANS),
+    killerBanCount: normalizeInteger(tournament && tournament.KILLER_BAN_COUNT, 0, 0),
+    allowMapBans: Boolean(tournament && tournament.ALLOW_MAP_BANS),
+    mapBanCount: normalizeInteger(tournament && tournament.MAP_BAN_COUNT, 0, 0)
+  };
+}
+
 function toArray(value) {
   if (Array.isArray(value)) {
     return value;
@@ -1267,6 +1377,55 @@ function toArray(value) {
 function normalizeText(value) {
   const text = String(value || '').trim();
   return text || '';
+}
+
+function normalizeBanList(value, maxCount) {
+  const limit = normalizeInteger(maxCount, 0, 0);
+
+  if (limit <= 0) {
+    return [];
+  }
+
+  const seen = new Set();
+  const rawItems = Array.isArray(value)
+    ? value
+    : String(value || '').split(/\r?\n/);
+  const bans = [];
+
+  for (const item of rawItems) {
+    const ban = normalizeText(item);
+    const key = ban.toLocaleLowerCase();
+
+    if (!ban || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    bans.push(ban);
+
+    if (bans.length >= limit) {
+      break;
+    }
+  }
+
+  return bans;
+}
+
+function stringifyBanList(bans) {
+  return bans && bans.length ? JSON.stringify(bans) : null;
+}
+
+function parseBanList(value) {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map(normalizeText).filter(Boolean) : [];
+  } catch (error) {
+    return String(value).split(/\r?\n/).map(normalizeText).filter(Boolean);
+  }
 }
 
 function normalizeDecimal(value, fallback) {
@@ -1288,7 +1447,8 @@ async function getTournamentData(tournamentId) {
   const [[tournament]] = await db.execute(
     [
       'SELECT',
-      '`ID`, `NAME`, `DESCRIPTION`, `STARTS_AT`, `ENDS_AT`, `SCORING_MODE`, `GAMES_PER_MATCH`, `CREATED_AT`',
+      '`ID`, `NAME`, `DESCRIPTION`, `STARTS_AT`, `ENDS_AT`, `SCORING_MODE`, `GAMES_PER_MATCH`,',
+      '`ALLOW_KILLER_BANS`, `KILLER_BAN_COUNT`, `ALLOW_MAP_BANS`, `MAP_BAN_COUNT`, `CREATED_AT`',
       'FROM `TOURNAMENT`',
       'WHERE `ID` = ?',
       'LIMIT 1'
@@ -1312,7 +1472,7 @@ async function getTournamentData(tournamentId) {
 
   const [teams] = await db.execute(
     [
-      'SELECT `ID`, `NAME`, `SHORTHAND`',
+      'SELECT `ID`, `NAME`, `SHORTHAND`, `KILLER_BANS`, `MAP_BANS`',
       'FROM `TOURNAMENT_TEAM`',
       'WHERE `TOURNAMENT_ID` = ?',
       'ORDER BY `SORT_ORDER`, `ID`'
@@ -1513,6 +1673,10 @@ function attachPlayersToTeams(teams, players) {
 
   return teams.map((team) => ({
     ...team,
+    KILLER_BAN_LIST: parseBanList(team.KILLER_BANS),
+    KILLER_BANS_TEXT: parseBanList(team.KILLER_BANS).join('\n'),
+    MAP_BAN_LIST: parseBanList(team.MAP_BANS),
+    MAP_BANS_TEXT: parseBanList(team.MAP_BANS).join('\n'),
     PLAYERS: playersByTeamId.get(team.ID) || []
   }));
 }
